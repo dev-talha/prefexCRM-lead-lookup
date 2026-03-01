@@ -31,7 +31,7 @@ Internal-use module for **Perfex CRM (CodeIgniter)** to search leads by phone nu
 
 ### Example
 ```
-https://crm.domain.com/leadlookup/by_phone?apikey=YOUR_STATIC_SECRET_KEY_HERE&phone=01797810793
+https://crm.domain.com/leadlookup/by_phone?apikey=YOUR_STATIC_SECRET_KEY_HERE&phone=01797810000
 ```
 
 ---
