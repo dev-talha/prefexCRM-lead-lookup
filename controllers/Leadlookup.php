@@ -26,23 +26,16 @@ class Leadlookup extends App_Controller
         $phone    = $this->sanitize_phone($rawPhone);
 
         if ($phone === '') {
-            return $this->json_response([
-                'error'   => 'phone_required',
-                'message' => 'Query parameter "phone" is required.',
-            ], 400);
+            return $this->json_error(400, 'Query parameter "phone" is required.');
         }
 
         $leads = $this->leadlookup_model->find_leads_by_phone($phone);
 
         if (empty($leads)) {
-            return $this->json_response([
-                'error'   => 'not_found',
-                'message' => 'No leads found for the provided phone number.',
-            ], 404);
+            return $this->json_error(404, 'No leads found for the provided phone number.');
         }
 
-        // Success: data is an array of leads
-        return $this->json_response($leads, 200);
+        return $this->json_success($leads, 200);
     }
 
     // -------------------------
@@ -57,10 +50,7 @@ class Leadlookup extends App_Controller
         $provided = (string) $this->input->get('apikey', true);
 
         if ($expected === '' || $provided === '' || !hash_equals($expected, $provided)) {
-            return $this->json_response([
-                'error'   => 'unauthorized',
-                'message' => 'Invalid or missing API key.',
-            ], 401);
+            return $this->json_error(401, 'Invalid or missing API key.');
         }
     }
 
@@ -73,10 +63,10 @@ class Leadlookup extends App_Controller
         $phone = trim((string) $phone);
 
         // Keep digits and plus (international format)
-        $phone = preg_replace('/[^\d\+]/', '', $phone);
+        $phone = preg_replace('/[^\\d\\+]/', '', $phone);
 
         // Normalize multiple plus signs
-        $phone = preg_replace('/^\++/', '+', $phone);
+        $phone = preg_replace('/^\\++/', '+', $phone);
 
         // Reasonable length cap
         if (strlen($phone) > 30) {
@@ -86,37 +76,28 @@ class Leadlookup extends App_Controller
         return $phone;
     }
 
-    private function is_assoc_array($arr)
+    private function json_success($data, $httpCode = 200)
     {
-        if (!is_array($arr)) {
-            return false;
-        }
-        $keys = array_keys($arr);
-        return array_keys($keys) !== $keys;
+        $response = [
+            'status' => 'success',
+            'data'   => is_array($data) ? $data : [$data],
+        ];
+
+        $this->output
+            ->set_status_header((int) $httpCode)
+            ->set_content_type('application/json', 'utf-8')
+            ->set_output(json_encode($response, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+
+        $this->output->_display();
+        exit;
     }
 
-    /**
-     * Wrap every response as:
-     * { "status": "success|error", "data": [...] }
-     *
-     * Requirement: data must ALWAYS be an array, even on error.
-     */
-    private function json_response($payload, $httpCode = 200, $status = null)
+    private function json_error($httpCode, $message)
     {
-        if ($status === null) {
-            $status = ((int) $httpCode >= 200 && (int) $httpCode < 300) ? 'success' : 'error';
-        }
-
-        // Ensure "data" is always an array:
-        // - success usually sends array of leads (keep)
-        // - error sends assoc array/object -> wrap into array
-        if (!is_array($payload) || ($status === 'error' && $this->is_assoc_array($payload))) {
-            $payload = [$payload];
-        }
-
         $response = [
-            'status' => $status,
-            'data'   => $payload,
+            'status'  => 'error',
+            'message' => (string) $message,
+            'data'    => [],
         ];
 
         $this->output
